@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 	tagBITMAPINFOHEADER bmpih;
 	unsigned char *offset;
 	FILE *fpr, *fpw;
-	unsigned int *src, *dst[2];
+	unsigned int *src, *dst[3];
 
 	fpr = fopen(SRC_FILE, "rb");
 	if (fpr == NULL) {
@@ -34,8 +34,9 @@ int main(int argc, char *argv[]) {
 	readBMPHeader(fpr, bmpfh, bmpih, offset, src);
 	fclose(fpr);
 
-	dst[0] = new unsigned int[bmpih.biWidth * bmpih.biHeight]();
-	dst[1] = new unsigned int[bmpih.biWidth * bmpih.biHeight]();
+	for (int f = 0; f < 3; f++) {
+		dst[f] = new unsigned int[bmpih.biWidth * bmpih.biHeight]();
+	}
 
 	// rgb2y
 	for (int y = 0; y < bmpih.biHeight; y++) {
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
 	// filter
 	int k[3][3] = { {1,2,1}, {2,4,2},{1,2,1} };
 
-	for (int f = 0; f < 2; f++) {
+	for (int f = 0; f < 3; f++) {
 		for (int y = 0; y < bmpih.biHeight; y++) {
 			for (int x = 0; x < bmpih.biWidth; x++) {
 				int idx = y * bmpih.biWidth + x;
@@ -57,13 +58,15 @@ int main(int argc, char *argv[]) {
 #endif
 				for (int n = -1; n < 2; n++) {
 					for (int m = -1; m < 2; m++) {
-						int tmp_idx = idx + m + n * bmpih.biWidth + bmpih.biWidth * bmpih.biHeight * f;
-						tmp_idx %= bmpih.biWidth * bmpih.biHeight;
+						int tmp_idx = idx + m + n * bmpih.biWidth + bmpih.biWidth * bmpih.biHeight * (f % 2);
+						if (f < 2) {
+							tmp_idx %= bmpih.biWidth * bmpih.biHeight;
+						}
 #if DEBUG
 						printf("(%2d, %2d) ", tmp_idx % bmpih.biWidth, tmp_idx / bmpih.biWidth);
 #endif
-						if (0 <= tmp_idx/* && tmp_idx < bmpih.biWidth * bmpih.biHeight*/) {
-							if (x != 0 || y != 0 || m != -1 || n != 1 || f != 0) {
+						if (0 <= tmp_idx && tmp_idx < bmpih.biWidth * bmpih.biHeight) {
+							if (x != 0 || y != 0 || m != -1 || n != 1 || f % 2 != 0) {
 								sum += src[tmp_idx] * k[m + 1][n + 1];
 #if DEBUG
 								printf("o [%02x]", src[tmp_idx]);
@@ -98,7 +101,7 @@ int main(int argc, char *argv[]) {
 	}
 
 #if DEBUG
-	for (int f = 0; f < 2; f++) {
+	for (int f = 0; f < 3; f++) {
 		for (int i = 0; i < bmpih.biWidth * bmpih.biHeight; i++) {
 			if (i % bmpih.biWidth == 0) {
 				std::cout << std::endl;
@@ -109,24 +112,18 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
-	fpw = fopen("dst0.bmp", "wb");
-	if (fpw == NULL) {
-		std::cerr << "Can't open destination file." << std::endl;
-		return 2;
+	char output[] = "dstN.bmp";
+	for (int f = 0; f < 3; f++) {
+		output[3] = '0' + f;
+		fpw = fopen(output, "wb");
+		if (fpw == NULL) {
+			std::cerr << "Can't open destination file." << std::endl;
+			return 2;
+		}
+		writeBMPHeader(fpw, bmpfh, bmpih, offset, dst[f]);
+		fclose(fpw);
+		delete dst[f];
 	}
-	writeBMPHeader(fpw, bmpfh, bmpih, offset, dst[0]);
-	fclose(fpw);
-
-	fpw = fopen("dst1.bmp", "wb");
-	if (fpw == NULL) {
-		std::cerr << "Can't open destination file." << std::endl;
-		return 2;
-	}
-	writeBMPHeader(fpw, bmpfh, bmpih, offset, dst[1]);
-	fclose(fpw);
-
-	delete dst[0];
-	delete dst[1];
 
 	delete offset;
 
