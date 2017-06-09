@@ -66,7 +66,6 @@ void writeBMPHeader(FILE *fp, tagBITMAPFILEHEADER &bmpfh, tagBITMAPINFOHEADER &b
 
 	fwrite(offset, sizeof(unsigned char), bmpfh.bfOffBits - BITMAPFILEHEADER_LEN - BITMAPINFOHEADER_LEN, fp);
 
-	img = new unsigned int[bmpih.biWidth * bmpih.biHeight]();
 	for (int y = 0; y < bmpih.biHeight; y++) {
 		for (int x = 0; x < bmpih.biWidth; x++) {
 			fputc((img[(bmpih.biHeight - 1 - y) * bmpih.biWidth + x] >> 16) & 0xff, fp);
